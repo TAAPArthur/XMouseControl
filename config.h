@@ -85,7 +85,8 @@ Key keys[] = {
 //
 // Directional control with WASD.
 
-
+{defaultMask, XK_Tab,cycleDefaultMaster,1},
+{defaultMask|ShiftMask, XK_Tab,cycleDefaultMaster,-1},
 {defaultMask,	XK_f,	cycleMoveOption,	 0},
 {defaultMask |ShiftMask,	XK_f,	resetCycleMoveOption,	 0},
 // Speed multiply/divide.

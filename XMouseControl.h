@@ -1,6 +1,7 @@
 #ifndef PK_H
 #define PK_H
 
+
 #include <X11/Xlib.h>
 #define LEN(X) (sizeof X / sizeof X[0])
 
@@ -21,8 +22,9 @@ typedef struct {
 	const int pressarg;
 	void (*releasefunc)(const int );
 	const int releasearg;
-	long timeLastRecorded;
+
 	KeyCode keyCode;
+	long timeLastRecorded[8];
 } Key;
 typedef struct {
 	int ismove2scroll;
@@ -32,6 +34,7 @@ typedef struct {
 	double coefficent;
 	int moveOption;
 	int id;
+	long timeLastRecorded;
 } Master;
 
 
@@ -67,18 +70,14 @@ enum {
 	PRESS = 1,
 };
 
-enum KeyOpts {
-	GRAB     = (1<<0),  // Grab key, making it a "global hotkey".
-	NOREPEAT = (1<<1),  // Disable autorepeat.
-};
 
 
 void setup();
-void runeventloop();
-void handle_pending_events();
+
+int getMasterPointerId(XIDeviceEvent *devev,Bool mouseEvent);
 Bool isPressed(int keycode);
 Bool isIdle();
-void forceRelease();
+void forceRelease(int n);
 void request_scrolling();
 int keypress(int keyCode,int mods,Bool press);
 void grabkeys();
@@ -88,9 +87,10 @@ int saveerror(Display *dpy, XErrorEvent *ee);
 void msleep(long ms);
 int addDirection(int dir,int d);
 int removeDirection(int dir,int d);
-Bool calcuateDisplacement(Bool scroll);
+Bool calcuateDisplacement(int index, Bool scroll);
 void update( Bool scroll);
 void detectEvent();
+void cycleDefaultMaster(int dir);
 
 
 

@@ -13,10 +13,24 @@
 #include "XMouseControl.h"
 #include "config.h"
 
+
 char keyMap[32];
 Master masters[NUMBER_OF_MASTER_DEVICES];
-Master *workingMaster;
+int workingIndex;
 int numberOfActiveMasters=0;
+
+
+static int
+handleError(Display *dpy, XErrorEvent *event)
+{
+	char buff[100];
+	XGetErrorText(dpy,event->error_code,buff,40);
+	printf("Ignoring Xlib error: error code %d request code %d %s\n",
+			   event->error_code,
+			   event->request_code,buff) ;
+	return 0;
+}
+
 void computeKeymap(){
 	XQueryKeymap(dpy, keyMap);
 }
@@ -49,45 +63,37 @@ void init(){
 	if (!dpy)
 		exit(2);
 
-	for (size_t i = 0; i < LEN(keys); i++)
+	for (size_t i = 0; i < LEN(keys); i++){
 		keys[i].keyCode=XKeysymToKeycode(dpy, keys[i].keySym);
+		for(int n=0;n<NUMBER_OF_MASTER_DEVICES;n++){
+			keys[i].timeLastRecorded[n]=0;
+		}
+	}
 	root = DefaultRootWindow(dpy);
 
 	//XSelectInput(dpy, root, KeyPressMask|KeyReleaseMask);
+	XSetErrorHandler(handleError);
 	grabkeys();
-
-	masters[numberOfActiveMasters].coefficent=1;
-	workingMaster=&masters[numberOfActiveMasters];
-	numberOfActiveMasters++;
-
-
 }
 void grabkeys(){
-	XSelectInput(dpy, root, KeyPressMask|KeyReleaseMask);
-	for (size_t i = 0; i < LEN(keys); i++) {
-		Key key = keys[i];
-		XGrabKey(dpy, key.keyCode, key.mod, root, True, GrabModeAsync, GrabModeAsync);
-	}
-	/*
-	XIEventMask m;
+	XIEventMask eventmask;
+	unsigned char mask[1] = { 0 }; /* the actual mask */
 
-	m.deviceid = XIAllDevices;
-	m.mask_len = XIMaskLen(XI_LASTEVENT);
-	m.mask = (unsigned char*)calloc(m.mask_len, sizeof(char));
+	eventmask.deviceid = XIAllMasterDevices;
+	eventmask.mask_len = sizeof(mask); /* always in bytes */
+	eventmask.mask = mask;
+	/* now set the mask */
+	XISetMask(mask, XI_KeyPress);
+	XISetMask(mask, XI_KeyRelease);
 
-	XISetMask(m.mask, XI_KeyPress);
-	XISetMask(m.mask, XI_KeyRelease);
 	for (size_t i = 0; i < LEN(keys); i++) {
 		Key key = keys[i];
 		KeyCode code = key.keyCode;
 		XIGrabModifiers modifiers;
 		modifiers.modifiers=key.mod;
-
-		XIGrabKeycode(dpy, XIAllDevices, code, root, XIGrabModeAsync, XIGrabModeAsync, False, &m, 1, &modifiers);
-
+		XIGrabKeycode(dpy, XIAllMasterDevices, code, root, XIGrabModeAsync, XIGrabModeAsync, True, &eventmask, 1, &modifiers);
 	}
-	*/
-	//printf("grabbing keys\n");
+
 
 }
 void dump(){
@@ -117,21 +123,25 @@ int main(){
 	init();
 
 	while (True){
-		//workingMaster
+		//workingMaster=None;
+		printf("checking idle\n");
 		if(isIdle()){
+			printf("idle\n");
 			detectEvent();
 		}
-		while(XPending(dpy)){
-			detectEvent();
-		}
+		else
+			while(XPending(dpy)){
+				detectEvent();
+			}
 
-
-		computeKeymap();
+		//computeKeymap();
 		update(True);
 		update(False);
-		forceRelease();
+		//forceRelease();
 		XFlush(dpy);
 		fflush(stdout);
+
+		//printf("skiiping sleep");
 
 		sleep(25);
 
@@ -145,19 +155,35 @@ int getAssociatedMasterDevice(int deviceId){
 	int id;
 	masterDevices = XIQueryDevice(dpy, deviceId, &ndevices);
 	id=masterDevices[0].attachment;
-	printf(" ass master info: %d %d %d ",id,ndevices,deviceId);
+	printf("as master info: %d %d %d %s",id,ndevices,deviceId,masterDevices[0].name);
 	XIFreeDeviceInfo(masterDevices);
-	masterDevices = XIQueryDevice(dpy, id, &ndevices);
-	id=masterDevices[0].attachment;
-	XIFreeDeviceInfo(masterDevices);
-	printf(" ass master info: %d %d %d ",id,ndevices,deviceId);
-	masterDevices = XIQueryDevice(dpy, id, &ndevices);
-	id=masterDevices[0].attachment;
-	XIFreeDeviceInfo(masterDevices);
-	printf(" ass master info: %d %d %d\n ",id,ndevices,deviceId);
 	return id;
 }
-/*
+void setWorkingMaster(XIDeviceEvent *devev){
+	int xMasterId=getAssociatedMasterDevice(devev->deviceid);
+	if(masters[workingIndex].id!=xMasterId)
+	{
+		printf("2\n");
+		for(int i=0;i<numberOfActiveMasters;i++){
+
+			if (masters[i].id==xMasterId){
+				printf("3\n");
+				workingIndex=i;
+				return;
+			}
+		}
+
+		masters[numberOfActiveMasters].id=xMasterId;
+		printf("3.5 %d %d",numberOfActiveMasters,masters[numberOfActiveMasters].id);
+		masters[numberOfActiveMasters].coefficent=1;
+
+		workingIndex=numberOfActiveMasters;
+
+		numberOfActiveMasters++;
+
+
+	}
+}
 void detectEvent(){
 	XEvent event;
 	XKeyEvent ev;
@@ -167,51 +193,63 @@ void detectEvent(){
 	XGenericEventCookie *cookie = &event.xcookie;
 	if(XGetEventData(dpy, cookie)){
 		devev = cookie->data;
-		if(!workingMaster)
-		{
-			printf("2\n");
-			for(int i=0;i<numberOfActiveMasters;i++){
-
-				if (masters[i].id==devev->deviceid){
-					printf("3\n");
-					workingMaster=&masters[i];
-					break;
-				}
-			}
-			if(!workingMaster){
-				printf("3.5");
-
-				getAssociatedMasterDevice(devev->sourceid);
-				masters[numberOfActiveMasters].id=getAssociatedMasterDevice(devev->deviceid);
-				masters[numberOfActiveMasters].coefficent=1;
-				workingMaster=&masters[numberOfActiveMasters];
-				numberOfActiveMasters++;
-			}
+		printf("info: %d %d\n",devev->deviceid,devev->sourceid);
+		if(devev->deviceid==0){
+			XFreeEventData(dpy, cookie);
+			return;
 		}
-		else
-			printf("master already set");
-		printf("coefficent %f %f",masters[0].coefficent,workingMaster->coefficent);
-		printf("autorepat %d",devev->flags& XIKeyRepeat);
-		keypress(devev->detail,devev->mods.effective,cookie->evtype==XI_KeyPress);
+		setWorkingMaster(devev);
+		printf("coefficent %f %f",masters[0].coefficent,masters[workingIndex].coefficent);
+		printf("autorepat %d press:%d \n",devev->flags& XIKeyRepeat,cookie->evtype==XI_KeyPress);
+		int keyIndex=keypress(devev->detail,devev->mods.effective,cookie->evtype==XI_KeyPress);
+		printf("setting index %d\n",workingIndex);
+		if (keyIndex>=0){
+
+			masters[workingIndex].timeLastRecorded=time(NULL) * 1000;
+			keys[keyIndex].timeLastRecorded[workingIndex]=time(NULL) * 1000;
+			printf("%ld\n",keys[keyIndex].timeLastRecorded[workingIndex]);
+
+		}
+
 
 	}
 	else{
 		printf("could not detect device");
-		workingMaster=&masters[numberOfActiveMasters];
+		workingIndex=numberOfActiveMasters;
 		ev = event.xkey;
 		keypress(ev.keycode,ev.state,event.type==KeyPress);
 	}
 	XFreeEventData(dpy, cookie);
+	printf("done\n");
 }
-*/
 
+int getMasterPointerId(XIDeviceEvent *devev,Bool mouseEvent){
+	int id=(getAssociatedMasterDevice(devev->deviceid));
+	printf("id: %d (%d)",id,devev->deviceid);
+	if (!mouseEvent&&devev->deviceid==devev->sourceid) //slave device
+		id=getAssociatedMasterDevice(id);
+	printf(";id: %d\n",id);
+	return id;
+}
+/*
 void detectEvent(){
 	XEvent event;
 	XKeyEvent ev;
+	XIDeviceEvent *devev;
 	XNextEvent(dpy,&event);
-	ev = event.xkey;
-	keypress(ev.keycode,ev.state,event.type==KeyPress);
+	XGenericEventCookie *cookie = &event.xcookie;
+	if(XGetEventData(dpy, cookie)){
+		devev = cookie->data;
+
+
+	}
+	else{
+		ev = event.xkey;
+		keypress(ev.keycode,ev.state,event.type==KeyPress);
+	}
+
 }
+*/
 int keypress(int keyCode,int mods,Bool press){
 
 	for (size_t i = 0; i < LEN(keys); i++) {
@@ -233,23 +271,24 @@ int keypress(int keyCode,int mods,Bool press){
 			keys[i].releasefunc(keys[i].releasearg);
 		}
 		//printf("detected\n");
-		keys[i].timeLastRecorded=time(NULL) * 1000;
+
 		return i;
 	}
 	return -1;
 
 }
-void forceRelease(){
+void forceRelease(int n){
+	computeKeymap();
 	time_t t;
     t = time(NULL) * 1000;
 	for (size_t i = 0; i < LEN(keys); i++) {
 		Key key = keys[i];
-		if (key.timeLastRecorded+1000>=t && key.releasefunc){
+		if (key.timeLastRecorded[n]+1000>=t && key.releasefunc){
 			if(!isPressed(key.keyCode)){
 				key.releasefunc(key.releasearg);
 			}
 			else
-				key.timeLastRecorded=t;
+				key.timeLastRecorded[n]=t;
 		}
 
 	}
@@ -258,12 +297,19 @@ Bool isTupleNotEmpty(Tuple t){
 	return t.x!=0 ||t.y!=0;
 }
 Bool isIdle(){
+	time_t t;
+	t = time(NULL) * 1000;
+	Bool idle=True;
 	for(int i=0;i<numberOfActiveMasters;i++)
-		if(!isTupleNotEmpty(masters[i].delta)||
-				!isTupleNotEmpty(masters[i].scrollRem)||!isTupleNotEmpty(masters[i].scrollRem))
-			return False;
-	numberOfActiveMasters=0;
-	return True;
+		if(masters[i].scrollDir!=0||masters[i].mouseDir!=0){
+			if(i==0&&masters[i].timeLastRecorded+1000>=t)
+				forceRelease(i);
+
+			printf("master %d is active",i);
+			idle=False;
+		}
+
+	return idle;
 
 }
 Bool isPressed(int keycode) {
@@ -272,82 +318,82 @@ Bool isPressed(int keycode) {
 	return (keyMap[i] & pos);
 }
 
-
-
-
-
-
 void update(Bool scroll){
-	if(calcuateDisplacement(scroll)){
-		//printf("mouse info: %d %d %d\n",workingMaster->id,workingMaster->delta.x, workingMaster->delta.y);
-		if (scroll)
-			request_scrolling();
-		else{
-			XWarpPointer(dpy, None, None, 0, 0, 0, 0, workingMaster->delta.x, workingMaster->delta.y);
-			//XIWarpPointer(dpy,workingMaster->id, None, None, 0, 0, 0, 0, workingMaster->delta.x, workingMaster->delta.y);
+	for(int i=0;i<numberOfActiveMasters;i++)
+		if(calcuateDisplacement(i,scroll)){
+			printf("mouse info (%d): %d %f %f\n",scroll,masters[i].id,masters[i].delta.x, masters[i].delta.y);
+			if (scroll)
+				request_scrolling();
+			else{
+				//XWarpPointer(dpy, None, None, 0, 0, 0, 0, masters[workingIndex].delta.x, masters[workingIndex].delta.y);
+				printf("movinge mouse %d\n",i);
+				XIWarpPointer(dpy,masters[i].id, None, None, 0, 0, 0, 0, masters[i].delta.x, masters[workingIndex].delta.y);
+			}
 		}
-	}
 }
 
 
 void cycleMoveOption(){
-	workingMaster->moveOption++;
-	if (workingMaster->moveOption == RESET)
-		workingMaster->moveOption = DEFAULT;
+	masters[workingIndex].moveOption++;
+	if (masters[workingIndex].moveOption == RESET)
+		masters[workingIndex].moveOption = DEFAULT;
 
 }
 void resetCycleMoveOption(){
-	workingMaster->moveOption = DEFAULT;
+	masters[workingIndex].moveOption = DEFAULT;
 }
-Bool calcuateDisplacement( Bool scroll){
-	int dir =scroll?workingMaster->scrollDir:workingMaster->mouseDir;
-	double xRem =scroll?workingMaster->scrollRem.x:workingMaster->mouseRem.x;
-	double yRem =scroll?workingMaster->scrollRem.y:workingMaster->mouseRem.y;
+Bool calcuateDisplacement(int index, Bool scroll){
+	int dir =scroll?masters[index].scrollDir:masters[index].mouseDir;
+	if(dir==0)
+		return False;
+	double xRem =scroll?masters[index].scrollRem.x:masters[index].mouseRem.x;
+	double yRem =scroll?masters[index].scrollRem.y:masters[index].mouseRem.y;
 	int xsign = ((dir & RIGHT) ? 1 : 0) - ((dir & LEFT) ? 1 : 0);
 	int ysign = ((dir & DOWN) ? 1 : 0) - ((dir & UP) ? 1 : 0) ;
 
-	if (workingMaster->coefficent==0)
+
+	if (masters[workingIndex].coefficent==0)
 		exit(2);
 
-	double value=(scroll? BASE_SCROLL_SPEED: BASE_MOUSE_SPEED) * workingMaster->coefficent ;//* usec / 1e6;
+	double value=(scroll? BASE_SCROLL_SPEED: BASE_MOUSE_SPEED) * masters[index].coefficent ;//* usec / 1e6;
 
-	workingMaster->delta.x=workingMaster->delta.y=0;
+	masters[index].delta.x=masters[index].delta.y=0;
 	if(xsign){
 		double raw=value * xsign + xRem;
-		workingMaster->delta.x=(int)raw;
+		masters[index].delta.x=(int)raw;
 
-		xRem = raw-workingMaster->delta.x;
+		xRem = raw-masters[index].delta.x;
 		if (scroll)
-			workingMaster->scrollRem.x = xRem;
+			masters[index].scrollRem.x = xRem;
 		else
-			workingMaster->mouseRem.x = xRem;
+			masters[index].mouseRem.x = xRem;
 	}
 
 	if(ysign){
 		double raw=value * ysign + yRem;
-		workingMaster->delta.y=(int)raw;
-		yRem = raw-workingMaster->delta.y;
+		masters[index].delta.y=(int)raw;
+		yRem = raw-masters[index].delta.y;
 		if (scroll)
-			workingMaster->scrollRem.y = yRem;
+			masters[index].scrollRem.y = yRem;
 		else
-			workingMaster->mouseRem.y = yRem;
+			masters[workingIndex].mouseRem.y = yRem;
 	}
-	return isTupleNotEmpty(workingMaster->delta);
+	return isTupleNotEmpty(masters[workingIndex].delta);
 }
 
 
 void request_scrolling()
 {
-	int xbutton = (workingMaster->scrollDir & LEFT) ? SCROLLLEFT : SCROLLRIGHT;
-	int ybutton = (workingMaster->scrollDir & UP) ? SCROLLUP : SCROLLDOWN;
+	int xbutton = (masters[workingIndex].scrollDir & LEFT) ? SCROLLLEFT : SCROLLRIGHT;
+	int ybutton = (masters[workingIndex].scrollDir & UP) ? SCROLLUP : SCROLLDOWN;
 	if (!xbutton && !ybutton)
 		return;
-	for (int i = 0; i < abs(workingMaster->delta.x); i++) {
+	for (int i = 0; i < abs(masters[workingIndex].delta.x); i++) {
 		XTestFakeButtonEvent(dpy, xbutton, PRESS, CurrentTime);
 
 	}
 	XTestFakeButtonEvent(dpy, xbutton, RELEASE, CurrentTime);
-	for (int i = 0; i < abs(workingMaster->delta.y); i++) {
+	for (int i = 0; i < abs(masters[workingIndex].delta.y); i++) {
 		XTestFakeButtonEvent(dpy, ybutton, PRESS, CurrentTime);
 
 	}
@@ -364,17 +410,17 @@ void clickrelease(const int btn){
 }
 
 void multiplyspeed(const int factor){
-	workingMaster->coefficent *= factor;
-	if (workingMaster->coefficent>MAX_THRESHOLD)
-		workingMaster->coefficent = MAX_THRESHOLD;
+	masters[workingIndex].coefficent *= factor;
+	if (masters[workingIndex].coefficent>MAX_THRESHOLD)
+		masters[workingIndex].coefficent = MAX_THRESHOLD;
 }
 void dividespeed(const int factor){
-	workingMaster->coefficent/= factor;
-	if (workingMaster->coefficent<MIN_THRESHOLD)
-		workingMaster->coefficent = MIN_THRESHOLD;
+	masters[workingIndex].coefficent/= factor;
+	if (masters[workingIndex].coefficent<MIN_THRESHOLD)
+		masters[workingIndex].coefficent = MIN_THRESHOLD;
 }
 void mouseAction(Bool scroll, int d, Bool start){
-	switch (workingMaster->moveOption){
+	switch (masters[workingIndex].moveOption){
 	case SWAP:
 		scroll = !scroll;
 		break;
@@ -385,16 +431,44 @@ void mouseAction(Bool scroll, int d, Bool start){
 		scroll = True;
 		break;
 	}
-	//printf("mouse action %d %d %d\n",scroll,workingMaster->scrollDir,workingMaster->mouseDir);
+	//printf("mouse action %d %d %d\n",scroll,masters[workingIndex].scrollDir,masters[workingIndex].mouseDir);
 	if (scroll)
 		if(start)
-			workingMaster->scrollDir|= d;
+			masters[workingIndex].scrollDir|= d;
 		else
-			workingMaster->scrollDir&= ~ d;
+			masters[workingIndex].scrollDir&= ~ d;
 	else
 		if(start)
-			workingMaster->mouseDir|= d;
+			masters[workingIndex].mouseDir|= d;
 		else
-			workingMaster->mouseDir&= ~ d;
-	//printf("mouse action %d %d %d\n",d,workingMaster->scrollDir,workingMaster->mouseDir);
+			masters[workingIndex].mouseDir&= ~ d;
+	//printf("mouse action %d %d %d\n",d,masters[workingIndex].scrollDir,masters[workingIndex].mouseDir);
+}
+
+void cycleDefaultMaster(int dir){
+	printf("cycling\n");
+	int id;
+	Window w;
+	XGetInputFocus(dpy, &w,&id);
+	XIGetClientPointer(dpy, w, &id);
+	printf("got current client\n");
+	int index=0;
+	int ndevices;
+	XIDeviceInfo *devices, *device;
+
+	devices = XIQueryDevice(dpy, XIMasterPointer, &ndevices);
+
+	for (int i = 0; i < ndevices; i++) {
+		device = &devices[i];
+		if (device->deviceid==id){
+			printf("Device %s (id: %d) at  %d\n", device->name, device->deviceid,i);
+			index=((i+dir*2)+ndevices)%ndevices;
+			break;
+		}
+	}
+	XIFreeDeviceInfo(devices);
+	printf("setting %d %d\n",index,devices[index].deviceid);
+	XISetClientPointer(dpy,w,devices[index].deviceid);
+
+
 }

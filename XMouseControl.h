@@ -75,10 +75,11 @@ enum {
 void setup();
 
 int getMasterPointerId(XIDeviceEvent *devev,Bool mouseEvent);
+void pressButton(const int btn,Bool press);
 Bool isPressed(int keycode);
 Bool isIdle();
 void forceRelease(int n);
-void request_scrolling();
+void scrollWithMouse(int id);
 int keypress(int keyCode,int mods,Bool press);
 void grabkeys();
 int grabkey(Key *key);

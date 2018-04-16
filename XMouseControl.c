@@ -213,24 +213,10 @@ void detectEvent(){
 
 
 	}
-	else{
-		printf("could not detect device");
-		workingIndex=numberOfActiveMasters;
-		ev = event.xkey;
-		keypress(ev.keycode,ev.state,event.type==KeyPress);
-	}
 	XFreeEventData(dpy, cookie);
 	printf("done\n");
 }
 
-int getMasterPointerId(XIDeviceEvent *devev,Bool mouseEvent){
-	int id=(getAssociatedMasterDevice(devev->deviceid));
-	printf("id: %d (%d)",id,devev->deviceid);
-	if (!mouseEvent&&devev->deviceid==devev->sourceid) //slave device
-		id=getAssociatedMasterDevice(id);
-	printf(";id: %d\n",id);
-	return id;
-}
 /*
 void detectEvent(){
 	XEvent event;
@@ -322,11 +308,13 @@ void update(Bool scroll){
 	for(int i=0;i<numberOfActiveMasters;i++)
 		if(calcuateDisplacement(i,scroll)){
 			printf("mouse info (%d): %d %f %f\n",scroll,masters[i].id,masters[i].delta.x, masters[i].delta.y);
-			if (scroll)
-				request_scrolling();
+			if (scroll){
+				scrollWithMouse(i);
+			}
 			else{
 				//XWarpPointer(dpy, None, None, 0, 0, 0, 0, masters[workingIndex].delta.x, masters[workingIndex].delta.y);
 				printf("movinge mouse %d\n",i);
+				printf("id: %d",masters[i].id);
 				XIWarpPointer(dpy,masters[i].id, None, None, 0, 0, 0, 0, masters[i].delta.x, masters[workingIndex].delta.y);
 			}
 		}
@@ -382,31 +370,38 @@ Bool calcuateDisplacement(int index, Bool scroll){
 }
 
 
-void request_scrolling()
+void scrollWithMouse(int id)
 {
 	int xbutton = (masters[workingIndex].scrollDir & LEFT) ? SCROLLLEFT : SCROLLRIGHT;
 	int ybutton = (masters[workingIndex].scrollDir & UP) ? SCROLLUP : SCROLLDOWN;
+
+	printf("id: %d\n",masters[id].id);
 	if (!xbutton && !ybutton)
 		return;
-	for (int i = 0; i < abs(masters[workingIndex].delta.x); i++) {
-		XTestFakeButtonEvent(dpy, xbutton, PRESS, CurrentTime);
-
-	}
-	XTestFakeButtonEvent(dpy, xbutton, RELEASE, CurrentTime);
-	for (int i = 0; i < abs(masters[workingIndex].delta.y); i++) {
-		XTestFakeButtonEvent(dpy, ybutton, PRESS, CurrentTime);
-
-	}
-	XTestFakeButtonEvent(dpy, ybutton, RELEASE, CurrentTime);
+	pressButton(xbutton,True);
+	pressButton(xbutton,False);
+	pressButton(ybutton,True);
+	pressButton(ybutton,False);
 }
 
 void clickpress(const int btn){
-	XTestFakeButtonEvent(dpy, btn, True, CurrentTime);
+	Window w;
+	XIGetFocus(dpy,masters[workingIndex].id, &w);
+	pressButton(btn,True);
 	printf("pressing\n");
 }
 
 void clickrelease(const int btn){
-	XTestFakeButtonEvent(dpy, btn, False, CurrentTime);
+	Window w;
+	XIGetFocus(dpy,masters[workingIndex].id, &w);
+	pressButton(btn,False);
+}
+
+void pressButton(const int btn,Bool press){
+	XDevice dev;
+	dev.device_id = masters[workingIndex].id; /* this is cheating */
+	//XTestFakeDeviceButtonEvent(display, &dev, button, True, NULL, 0, 0);
+	XTestFakeDeviceButtonEvent(dpy,&dev,btn, press,NULL,0, CurrentTime);
 }
 
 void multiplyspeed(const int factor){

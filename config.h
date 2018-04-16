@@ -96,15 +96,15 @@ Key keys[] = {
 {defaultMask|ShiftMask,	XK_x,	multiplyspeed,	2,dividespeed,	2},
 
 // Arrow key Scrolling
-{defaultMask,	XK_Up,	scrollstart,	 UP,	scrollstop,	UP},
-{defaultMask,	XK_Left,	scrollstart,	 LEFT,	scrollstop,	LEFT},
-{defaultMask,	XK_Down,	scrollstart,	 DOWN,	scrollstop,	DOWN},
-{defaultMask,	XK_Right,	scrollstart,	 RIGHT,	scrollstop,	RIGHT},
+{defaultMask,	XK_Up,	movestart,	 UP,	movestop,	UP},
+{defaultMask,	XK_Left,	movestart,	 LEFT,	movestop,	LEFT},
+{defaultMask,	XK_Down,	movestart,	 DOWN,	movestop,	DOWN},
+{defaultMask,	XK_Right,	movestart,	 RIGHT,	movestop,	RIGHT},
 //WASD Mouse move
-{defaultMask,	XK_w,	movestart,	 UP,	movestop,	UP},
-{defaultMask,	XK_a,	movestart,	 LEFT,	movestop,	LEFT},
-{defaultMask,	XK_s,	movestart,	 DOWN,	movestop,	DOWN},
-{defaultMask,	XK_d,	movestart,	 RIGHT,	movestop,	RIGHT},
+{defaultMask,	XK_w,	scrollstart,	 UP,	scrollstop,	UP},
+{defaultMask,	XK_a,	scrollstart,	 LEFT,	scrollstop,	LEFT},
+{defaultMask,	XK_s,	scrollstart,	 DOWN,	scrollstop,	DOWN},
+{defaultMask,	XK_d,	scrollstart,	 RIGHT,	scrollstop,	RIGHT},
 
 //Keypad mouse move
 

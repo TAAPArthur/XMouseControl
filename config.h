@@ -1,3 +1,4 @@
+#include "XMouseControl.h"
 // "Frames" or updates per second.
 #define FPS 30
 // Pixels per second.
@@ -28,7 +29,7 @@ void resetCycleMoveOption();
 // factor is a float.
 void multiplyspeed(const int factor);
 void dividespeed(const int factor);
-
+void cycleWindows(int i);
 // Clicking:
 // btn can be any value from enum Mouse.
 void clickpress(const int btn);
@@ -77,7 +78,7 @@ void scrollstop(const int d){
 // account when determining a key's binding, similar to how keybindings work
 // for video games. Bindings with modifiers aren't active while the keyboard is
 // grabbed. Bindings with modifiers must have the GRAB option set.
-
+int CYCLE_WINDOWS_END_KEY=XK_Alt_L;
 
 Key keys[] = {
 // modifier  key	opts	press func	 press arg	release func	release arg
@@ -130,5 +131,8 @@ Key keys[] = {
 {defaultMask,	XK_KP_Enter,	clickpress,	BTNLEFT,	clickrelease,	BTNLEFT},
 {defaultMask,	XK_KP_5,	clickpress,	BTNLEFT,	clickrelease,	BTNLEFT},
 {defaultMask,	XK_KP_Insert,	clickpress,	BTNMIDDLE,  clickrelease,	BTNMIDDLE},
+{Mod1Mask,		XK_Tab,	cycleWindows,	1},
+{Mod1Mask | ShiftMask,		XK_Tab,	cycleWindows,	-1}
+
 
 };

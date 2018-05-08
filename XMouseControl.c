@@ -8,6 +8,7 @@
 #include <X11/Xproto.h>
 #include <X11/extensions/XTest.h>
 #include <X11/keysym.h>
+#include <xdo.h>
 #include <time.h>
 
 #include "XMouseControl.h"
@@ -19,10 +20,9 @@ Master masters[NUMBER_OF_MASTER_DEVICES];
 int workingIndex;
 int numberOfActiveMasters=0;
 
+int CYCLE_WINDOWS_END_KEYCODE;
 
-static int
-handleError(Display *dpy, XErrorEvent *event)
-{
+static int handleError(Display *dpy, XErrorEvent *event){
 	char buff[100];
 	XGetErrorText(dpy,event->error_code,buff,40);
 	printf("Ignoring Xlib error: error code %d request code %d %s\n",
@@ -69,6 +69,7 @@ void init(){
 			keys[i].timeLastRecorded[n]=0;
 		}
 	}
+	CYCLE_WINDOWS_END_KEYCODE=XKeysymToKeycode(dpy, CYCLE_WINDOWS_END_KEY);
 	root = DefaultRootWindow(dpy);
 
 	//XSelectInput(dpy, root, KeyPressMask|KeyReleaseMask);
@@ -260,6 +261,8 @@ int keypress(int keyCode,int mods,Bool press){
 
 		return i;
 	}
+	if(keyCode==CYCLE_WINDOWS_END_KEYCODE)
+		endCycleWindows();
 	return -1;
 
 }
@@ -320,6 +323,7 @@ void update(Bool scroll){
 		}
 		Window focusedWindow;
 		XIGetFocus(dpy, masters[workingIndex].id, &focusedWindow);
+		addWindow(masters[workingIndex],focusedWindow);
 	}
 }
 
@@ -373,8 +377,7 @@ Bool calcuateDisplacement(int index, Bool scroll){
 }
 
 
-void scrollWithMouse(int id)
-{
+void scrollWithMouse(int id){
 	int xbutton = (masters[workingIndex].scrollDir & LEFT) ? SCROLLLEFT : SCROLLRIGHT;
 	int ybutton = (masters[workingIndex].scrollDir & UP) ? SCROLLUP : SCROLLDOWN;
 
@@ -467,6 +470,47 @@ void cycleDefaultMaster(int dir){
 	XIFreeDeviceInfo(devices);
 	printf("setting %d %d\n",index,devices[index].deviceid);
 	XISetClientPointer(dpy,w,devices[index].deviceid);
+}
+void cycleWindows(int offset){
+	int nextWindowIndex=(++masters[workingIndex].windows.offset)%LEN(masters[workingIndex].windows.windowOrder);
+	Window nextWindow=masters[workingIndex].windows.windowOrder[nextWindowIndex];
+	if(nextWindow==0){
+		nextWindow=masters[workingIndex].windows.windowOrder[0];
+		masters[workingIndex].windows.offset=0;
+	}
+	if(nextWindow==0)
+		return;
+	xdo_activate_window(dpy,nextWindow);
 
+	if(masters[workingIndex].windows.cycling)
+		return;
+	masters[workingIndex].windows.cycling=True
 
+	XIEventMask eventmask;
+	unsigned char mask[1] = { 0 }; /* the actual mask */
+
+	eventmask.deviceid = masters[workingIndex].id;
+	eventmask.mask_len = sizeof(mask); /* always in bytes */
+	eventmask.mask = mask;
+	/* now set the mask */
+	XISetMask(mask, XI_KeyPress);
+	XISetMask(mask, XI_KeyRelease);
+	XIGrabKeycode(dpy, masters[workingIndex].id, XKeysymToKeycode(dpy, CYCLE_WINDOWS_END_KEY), root, XIGrabModeAsync, XIGrabModeAsync, True, &eventmask, 1, AnyModifier);
+}
+void endCycleWindows(){
+	addWindow(masters[workingIndex],masters[workingIndex].windows.offset);
+	masters[workingIndex].windows.offset=0;
+	XUngrabKey(dpy,XKeysymToKeycode(dpy, CYCLE_WINDOWS_END_KEY),AnyModifier,root);
+}
+void addWindow(Master master,Window id){
+	Window windowToInsert=id;
+	for(int i=0; i<LEN(master.windows.windowOrder); i++){
+
+		Window temp=master.windows.windowOrder[i];
+		if(temp==id|| temp==0)
+			break;
+		master.windows.windowOrder[i]=windowToInsert;
+		windowToInsert=temp;
+
+	}
 }

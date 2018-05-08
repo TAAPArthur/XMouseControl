@@ -3,6 +3,14 @@
 
 
 #include <X11/Xlib.h>
+
+#include <X11/extensions/XInput2.h>
+#include <X11/XKBlib.h>
+
+#include <X11/Xproto.h>
+#include <X11/extensions/XTest.h>
+#include <X11/keysym.h>
+
 #define LEN(X) (sizeof X / sizeof X[0])
 
 Display *dpy = NULL;
@@ -26,6 +34,13 @@ typedef struct {
 	KeyCode keyCode;
 	long timeLastRecorded[8];
 } Key;
+
+typedef struct {
+	Window windowOrder[20];
+	Bool cycling;
+	int offset;
+} MasterWindows;
+
 typedef struct {
 	int ismove2scroll;
 	Tuple scrollRem,mouseRem;
@@ -35,7 +50,7 @@ typedef struct {
 	int moveOption;
 	int id;
 	long timeLastRecorded;
-	int windows[20];
+	MasterWindows windows;
 } Master;
 
 
@@ -93,7 +108,9 @@ Bool calcuateDisplacement(int index, Bool scroll);
 void update( Bool scroll);
 void detectEvent();
 void cycleDefaultMaster(int dir);
-
+void cycleWindows(int offset);
+void endCycleWindows();
+void addWindow(Master master,Window id);
 
 
 #endif

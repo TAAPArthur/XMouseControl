@@ -8,7 +8,7 @@
 #include <X11/Xproto.h>
 #include <X11/extensions/XTest.h>
 #include <X11/keysym.h>
-#include <xdo.h>
+
 #include <time.h>
 
 #include "XMouseControl.h"
@@ -58,6 +58,7 @@ void checkXServerVersion(){
 }
 void init(){
 	dpy = XOpenDisplay(NULL);
+	xdo =xdo_new(NULL);
 	checkXServerVersion();
 
 	if (!dpy)
@@ -480,7 +481,7 @@ void cycleWindows(int offset){
 	}
 	if(nextWindow==0)
 		return;
-	xdo_activate_window(dpy,nextWindow);
+	xdo_activate_window(xdo,nextWindow);
 
 	if(masters[workingIndex].windows.cycling)
 		return;

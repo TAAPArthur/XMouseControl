@@ -3,17 +3,13 @@
 
 
 #include <X11/Xlib.h>
-
 #include <X11/extensions/XInput2.h>
-#include <X11/XKBlib.h>
-
-#include <X11/Xproto.h>
-#include <X11/extensions/XTest.h>
-#include <X11/keysym.h>
+#include <xdo.h>
 
 #define LEN(X) (sizeof X / sizeof X[0])
 
 Display *dpy = NULL;
+xdo_t *xdo;
 Window root;
 
 

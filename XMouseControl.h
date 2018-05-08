@@ -35,6 +35,7 @@ typedef struct {
 	int moveOption;
 	int id;
 	long timeLastRecorded;
+	int windows[20];
 } Master;
 
 

@@ -305,7 +305,7 @@ Bool isPressed(int keycode) {
 }
 
 void update(Bool scroll){
-	for(int i=0;i<numberOfActiveMasters;i++)
+	for(int i=0;i<numberOfActiveMasters;i++){
 		if(calcuateDisplacement(i,scroll)){
 			printf("mouse info (%d): %d %f %f\n",scroll,masters[i].id,masters[i].delta.x, masters[i].delta.y);
 			if (scroll){
@@ -318,6 +318,9 @@ void update(Bool scroll){
 				XIWarpPointer(dpy,masters[i].id, None, None, 0, 0, 0, 0, masters[i].delta.x, masters[workingIndex].delta.y);
 			}
 		}
+		Window focusedWindow;
+		XIGetFocus(dpy, masters[workingIndex].id, &focusedWindow);
+	}
 }
 
 

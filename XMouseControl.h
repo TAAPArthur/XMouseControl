@@ -12,6 +12,7 @@ Display *dpy = NULL;
 xdo_t *xdo;
 Window root;
 
+const int NUMBER_OF_WINDOWS=20;
 
 
 typedef struct {
@@ -103,10 +104,7 @@ int removeDirection(int dir,int d);
 Bool calcuateDisplacement(int index, Bool scroll);
 void update( Bool scroll);
 void detectEvent();
-void cycleDefaultMaster(int dir);
-void cycleWindows(int offset);
-void endCycleWindows();
-void addWindow(Master master,Window id);
+//void cycleDefaultMaster(int dir);
 
 
 #endif

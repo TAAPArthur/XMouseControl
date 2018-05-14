@@ -2,7 +2,7 @@
 
 
 pkgname='xmouse-control'
-pkgver='1.0.0'
+pkgver='1.0.1'
 _language='en-US'
 pkgrel=1
 pkgdesc='Control mouse from keyboard'

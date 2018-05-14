@@ -29,7 +29,7 @@ void resetCycleMoveOption();
 // factor is a float.
 void multiplyspeed(const int factor);
 void dividespeed(const int factor);
-void cycleWindows(int i);
+
 // Clicking:
 // btn can be any value from enum Mouse.
 void clickpress(const int btn);
@@ -86,8 +86,8 @@ Key keys[] = {
 //
 // Directional control with WASD.
 
-{defaultMask, XK_Tab,cycleDefaultMaster,1},
-{defaultMask|ShiftMask, XK_Tab,cycleDefaultMaster,-1},
+//{defaultMask, XK_Tab,cycleDefaultMaster,1},
+//{defaultMask|ShiftMask, XK_Tab,cycleDefaultMaster,-1},
 {defaultMask,	XK_f,	cycleMoveOption,	 0},
 {defaultMask |ShiftMask,	XK_f,	resetCycleMoveOption,	 0},
 // Speed multiply/divide.
@@ -131,8 +131,7 @@ Key keys[] = {
 {defaultMask,	XK_KP_Enter,	clickpress,	BTNLEFT,	clickrelease,	BTNLEFT},
 {defaultMask,	XK_KP_5,	clickpress,	BTNLEFT,	clickrelease,	BTNLEFT},
 {defaultMask,	XK_KP_Insert,	clickpress,	BTNMIDDLE,  clickrelease,	BTNMIDDLE},
-{Mod1Mask,		XK_Tab,	cycleWindows,	1},
-{Mod1Mask | ShiftMask,		XK_Tab,	cycleWindows,	-1}
+
 
 
 };

@@ -6,7 +6,8 @@
 // Events per second.
 #define BASE_SCROLL_SPEED 1
 #define DELAY 15
-#define defaultMask Mod3Mask
+#define DEFAULT_MASK Mod3Mask
+#define IGNORE_MASK Mod2Mask //set to ingore numlock mod2
 #define MAX_THRESHOLD 128.0
 #define MIN_THRESHOLD .125
 
@@ -52,33 +53,7 @@ void scrollstop(const int d){
 	mouseAction(True, d, False);
 }
 
-// Set modifier bits as "internal" while the keyboard is grabbed, that is, the
-// xserver still keeps track of their state but doesn't pass them along in key
-// events to applications.
-//
-// By default, set modifier bits will be included in click and scroll events
-// generated while the keyboard is grabbed. For example, holding down a shift
-// key to make the directional keys scroll instead will send "Shift-scroll"
-// events whenever directional keys are pressed unless the ShiftMask bit is
-// included here. Note that some modifier keysyms are treated as modifiers even
-// if they aren't assigned to any modifier bits.
-//
-// Modifiers cannot be suppressed for global hotkeys.
-//unsigned int internalmods = ShiftMask|ControlMask|Mod1Mask
 
-// See command.h for the list of bindable functions.
-//
-// Use unshifted keysyms regardless whether shift will be pressed. Eg, use XK_a
-// or XK_5 instead of XK_A or XK_percent.
-//
-// Keys with modifiers can't have release functions, since the order of key
-// release is significant.
-//
-// While the keyboard is grabbed ptrkeys doesn't take modifier bits into
-// account when determining a key's binding, similar to how keybindings work
-// for video games. Bindings with modifiers aren't active while the keyboard is
-// grabbed. Bindings with modifiers must have the GRAB option set.
-int CYCLE_WINDOWS_END_KEY=XK_Alt_L;
 
 Key keys[] = {
 // modifier  key	opts	press func	 press arg	release func	release arg
@@ -86,51 +61,51 @@ Key keys[] = {
 //
 // Directional control with WASD.
 
-//{defaultMask, XK_Tab,cycleDefaultMaster,1},
-//{defaultMask|ShiftMask, XK_Tab,cycleDefaultMaster,-1},
-{defaultMask,	XK_f,	cycleMoveOption,	 0},
-{defaultMask |ShiftMask,	XK_f,	resetCycleMoveOption,	 0},
+//{DEFAULT_MASK, XK_Tab,cycleDefaultMaster,1},
+//{DEFAULT_MASK|ShiftMask, XK_Tab,cycleDefaultMaster,-1},
+{DEFAULT_MASK,	XK_f,	cycleMoveOption,	 0},
+{DEFAULT_MASK |ShiftMask,	XK_f,	resetCycleMoveOption,	 0},
 // Speed multiply/divide.
-{defaultMask,	XK_z,	dividespeed,	2},
-{defaultMask,	XK_x,	multiplyspeed,	2},
-{defaultMask |ShiftMask,	XK_z,	dividespeed,	2,multiplyspeed,	2},
-{defaultMask|ShiftMask,	XK_x,	multiplyspeed,	2,dividespeed,	2},
+{DEFAULT_MASK,	XK_z,	dividespeed,	2},
+{DEFAULT_MASK,	XK_x,	multiplyspeed,	2},
+{DEFAULT_MASK |ShiftMask,	XK_z,	dividespeed,	2,multiplyspeed,	2},
+{DEFAULT_MASK|ShiftMask,	XK_x,	multiplyspeed,	2,dividespeed,	2},
 
 // Arrow key Scrolling
-{defaultMask,	XK_Up,	movestart,	 UP,	movestop,	UP},
-{defaultMask,	XK_Left,	movestart,	 LEFT,	movestop,	LEFT},
-{defaultMask,	XK_Down,	movestart,	 DOWN,	movestop,	DOWN},
-{defaultMask,	XK_Right,	movestart,	 RIGHT,	movestop,	RIGHT},
+{DEFAULT_MASK,	XK_Up,	movestart,	 UP,	movestop,	UP},
+{DEFAULT_MASK,	XK_Left,	movestart,	 LEFT,	movestop,	LEFT},
+{DEFAULT_MASK,	XK_Down,	movestart,	 DOWN,	movestop,	DOWN},
+{DEFAULT_MASK,	XK_Right,	movestart,	 RIGHT,	movestop,	RIGHT},
 //WASD Mouse move
-{defaultMask,	XK_w,	scrollstart,	 UP,	scrollstop,	UP},
-{defaultMask,	XK_a,	scrollstart,	 LEFT,	scrollstop,	LEFT},
-{defaultMask,	XK_s,	scrollstart,	 DOWN,	scrollstop,	DOWN},
-{defaultMask,	XK_d,	scrollstart,	 RIGHT,	scrollstop,	RIGHT},
+{DEFAULT_MASK,	XK_w,	scrollstart,	 UP,	scrollstop,	UP},
+{DEFAULT_MASK,	XK_a,	scrollstart,	 LEFT,	scrollstop,	LEFT},
+{DEFAULT_MASK,	XK_s,	scrollstart,	 DOWN,	scrollstop,	DOWN},
+{DEFAULT_MASK,	XK_d,	scrollstart,	 RIGHT,	scrollstop,	RIGHT},
 
 //Keypad mouse move
 
-{defaultMask,	XK_KP_Up,	movestart,	 UP,	movestop,	UP},
-{defaultMask,	XK_KP_Left,	movestart,	 LEFT,	movestop,	LEFT},
-{defaultMask,	XK_KP_Down,	movestart,	 DOWN,	movestop,	DOWN},
-{defaultMask,	XK_KP_Right,	movestart,	 RIGHT,	movestop,	RIGHT},
+{DEFAULT_MASK,	XK_KP_Up,	movestart,	 UP,	movestop,	UP},
+{DEFAULT_MASK,	XK_KP_Left,	movestart,	 LEFT,	movestop,	LEFT},
+{DEFAULT_MASK,	XK_KP_Down,	movestart,	 DOWN,	movestop,	DOWN},
+{DEFAULT_MASK,	XK_KP_Right,	movestart,	 RIGHT,	movestop,	RIGHT},
 
 
 
-{defaultMask,	XK_c,	clickpress,	BTNRIGHT,	clickrelease,	BTNRIGHT},
-{defaultMask,	XK_V,	clickpress,	BTNMIDDLE,	clickrelease,	BTNMIDDLE},
-{defaultMask,	XK_Insert,	clickpress,	BTNMIDDLE,  clickrelease,	BTNMIDDLE},
-{defaultMask | ShiftMask,	XK_space,	clickpress,	BTNLEFT	},
-{defaultMask | Mod1Mask,	XK_space,	clickrelease,	BTNLEFT},
-{defaultMask,	XK_space,	clickpress,	BTNLEFT,	clickrelease,	BTNLEFT},
-{defaultMask,	XK_Return,	clickpress,	BTNLEFT,	clickrelease,	BTNLEFT},
+{DEFAULT_MASK,	XK_c,	clickpress,	BTNRIGHT,	clickrelease,	BTNRIGHT},
+{DEFAULT_MASK,	XK_V,	clickpress,	BTNMIDDLE,	clickrelease,	BTNMIDDLE},
+{DEFAULT_MASK,	XK_Insert,	clickpress,	BTNMIDDLE,  clickrelease,	BTNMIDDLE},
+{DEFAULT_MASK | ShiftMask,	XK_space,	clickpress,	BTNLEFT	},
+{DEFAULT_MASK | Mod1Mask,	XK_space,	clickrelease,	BTNLEFT},
+{DEFAULT_MASK,	XK_space,	clickpress,	BTNLEFT,	clickrelease,	BTNLEFT},
+{DEFAULT_MASK,	XK_Return,	clickpress,	BTNLEFT,	clickrelease,	BTNLEFT},
 
-{defaultMask | ShiftMask,	XK_a,	clickpress,	BTNLEFT,	clickrelease,	BTNLEFT},
-{defaultMask | ShiftMask,	XK_s,	clickpress,	BTNMIDDLE,	clickrelease,	BTNMIDDLE},
-{defaultMask | ShiftMask,	XK_d,	clickpress,	BTNRIGHT,	clickrelease,	BTNRIGHT},
+{DEFAULT_MASK | ShiftMask,	XK_a,	clickpress,	BTNLEFT,	clickrelease,	BTNLEFT},
+{DEFAULT_MASK | ShiftMask,	XK_s,	clickpress,	BTNMIDDLE,	clickrelease,	BTNMIDDLE},
+{DEFAULT_MASK | ShiftMask,	XK_d,	clickpress,	BTNRIGHT,	clickrelease,	BTNRIGHT},
 
-{defaultMask,	XK_KP_Enter,	clickpress,	BTNLEFT,	clickrelease,	BTNLEFT},
-{defaultMask,	XK_KP_5,	clickpress,	BTNLEFT,	clickrelease,	BTNLEFT},
-{defaultMask,	XK_KP_Insert,	clickpress,	BTNMIDDLE,  clickrelease,	BTNMIDDLE},
+{DEFAULT_MASK,	XK_KP_Enter,	clickpress,	BTNLEFT,	clickrelease,	BTNLEFT},
+{DEFAULT_MASK,	XK_KP_5,	clickpress,	BTNLEFT,	clickrelease,	BTNLEFT},
+{DEFAULT_MASK,	XK_KP_Insert,	clickpress,	BTNMIDDLE,  clickrelease,	BTNMIDDLE},
 
 
 

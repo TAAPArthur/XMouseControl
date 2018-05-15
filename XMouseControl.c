@@ -93,9 +93,11 @@ void grabkeys(){
 		XIGrabModifiers modifiers;
 		modifiers.modifiers=key.mod;
 		XIGrabKeycode(dpy, XIAllMasterDevices, code, root, XIGrabModeAsync, XIGrabModeAsync, True, &eventmask, 1, &modifiers);
+		XIGrabModifiers modifiers2;
+		modifiers2.modifiers=key.mod|IGNORE_MASK;
+		XIGrabKeycode(dpy, XIAllMasterDevices, code, root, XIGrabModeAsync, XIGrabModeAsync, True, &eventmask, 1, &modifiers2);
+
 	}
-
-
 }
 void dump(){
 	int ndevices;
@@ -202,7 +204,8 @@ void detectEvent(){
 		setWorkingMaster(devev);
 		printf("coefficent %f %f",masters[0].coefficent,masters[workingIndex].coefficent);
 		printf("autorepat %d press:%d \n",devev->flags& XIKeyRepeat,cookie->evtype==XI_KeyPress);
-		int keyIndex=keypress(devev->detail,devev->mods.effective,cookie->evtype==XI_KeyPress);
+		int mods=devev->mods.effective&~IGNORE_MASK;
+		int keyIndex=keypress(devev->detail,mods,cookie->evtype==XI_KeyPress);
 		printf("setting index %d\n",workingIndex);
 		if (keyIndex>=0){
 

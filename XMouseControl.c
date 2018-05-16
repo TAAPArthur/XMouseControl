@@ -431,7 +431,13 @@ void mouseAction(Bool scroll, int d, Bool start){
 		break;
 	}
 	//printf("mouse action %d %d %d\n",scroll,masters[workingIndex].scrollDir,masters[workingIndex].mouseDir);
-	if (scroll)
+    if(d){  
+        printf("resetting\n");
+        if(scroll)
+			masters[workingIndex].scrollDir= 0;
+        else masters[workingIndex].mouseDir=0;
+    }
+    else if (scroll)
 		if(start)
 			masters[workingIndex].scrollDir|= d;
 		else

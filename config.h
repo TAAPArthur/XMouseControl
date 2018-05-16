@@ -8,7 +8,7 @@
 #define DELAY 15
 #define DEFAULT_MASK Mod3Mask
 #define IGNORE_MASK Mod2Mask //set to ingore numlock mod2
-#define MAX_THRESHOLD 128.0
+#define MAX_THRESHOLD 4096.0
 #define MIN_THRESHOLD .125
 
 #define NUMBER_OF_MASTER_DEVICES 8
@@ -53,6 +53,9 @@ void scrollstop(const int d){
 	mouseAction(True, d, False);
 }
 
+void reset(){
+	mouseAction(0, 0, 0);
+}
 
 
 Key keys[] = {
@@ -90,6 +93,7 @@ Key keys[] = {
 {DEFAULT_MASK,	XK_KP_Right,	movestart,	 RIGHT,	movestop,	RIGHT},
 
 
+{DEFAULT_MASK,	XK_Hyper_L,	0,	 0,	reset,	0},
 
 {DEFAULT_MASK,	XK_c,	clickpress,	BTNRIGHT,	clickrelease,	BTNRIGHT},
 {DEFAULT_MASK,	XK_V,	clickpress,	BTNMIDDLE,	clickrelease,	BTNMIDDLE},

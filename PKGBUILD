@@ -2,7 +2,7 @@
 
 
 pkgname='xmouse-control'
-pkgver='1.1.0'
+pkgver='1.2.1'
 _language='en-US'
 pkgrel=1
 pkgdesc='Control mouse from keyboard'
@@ -15,10 +15,11 @@ md5sums=('SKIP')
 source=("git://github.com/TAAPArthur/XMouseControl.git")
 _srcDir="XMouseControl"
 
+build(){
+	cd "$_srcDir"
+	make
+}
 package() {
-
   cd "$_srcDir"
-  mkdir -p "$pkgdir/usr/bin/"
-  mkdir -p "$pkgdir/usr/lib/$pkgname/"
-  install -D -m 0755 "xmouse-control" "$pkgdir/usr/bin/"
+  make DESTDIR="$pkgdir" install
 }

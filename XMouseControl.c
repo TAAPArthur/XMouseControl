@@ -31,9 +31,6 @@ static int handleError(Display *dpy, XErrorEvent *event){
 	return 0;
 }
 
-void computeKeymap(){
-	XQueryKeymap(dpy, keyMap);
-}
 
 void msleep(long ms){
 	struct timespec duration = {
@@ -42,24 +39,8 @@ void msleep(long ms){
 	};
 	nanosleep(&duration, NULL);
 }
-void checkXServerVersion(){
-	int opcode, event, error;
-	if (!XQueryExtension(dpy, "XInputExtension", &opcode, &event, &error)) {
-	   printf("X Input extension not available.\n");
-	   exit(1);
-	}
-
-	/* Which version of XI2? We support 2.0 */
-	int major = 2, minor = 0;
-	if (XIQueryVersion(dpy, &major, &minor) == BadRequest) {
-	  printf("XI2 not available. Server supports %d.%d\n", major, minor);
-	  exit(1);
-	}
-}
 void init(){
 	dpy = XOpenDisplay(NULL);
-	xdo =xdo_new(NULL);
-	checkXServerVersion();
 
 	if (!dpy)
 		exit(2);
@@ -98,29 +79,6 @@ void grabkeys(){
 		XIGrabKeycode(dpy, XIAllMasterDevices, code, root, XIGrabModeAsync, XIGrabModeAsync, True, &eventmask, 1, &modifiers2);
 
 	}
-}
-void dump(){
-	int ndevices;
-	XIDeviceInfo *devices, device;
-
-	devices = XIQueryDevice(dpy, XIAllDevices, &ndevices);
-
-	for (int i = 0; i < ndevices; i++) {
-		device = devices[i];
-		printf("Device %s (id: %d) is a ", device.name, device.deviceid);
-
-		switch(device.use) {
-		   case XIMasterPointer: printf("master pointer\n"); break;
-		   case XIMasterKeyboard: printf("master keyboard\n"); break;
-		   case XISlavePointer: printf("slave pointer\n"); break;
-		   case XISlaveKeyboard: printf("slave keyboard\n"); break;
-		   case XIFloatingSlave: printf("floating slave\n"); break;
-		}
-
-		printf("Device is attached to/paired with %d\n", device.attachment);
-	}
-
-	XIFreeDeviceInfo(devices);
 }
 int main(){
 	init();
@@ -208,11 +166,9 @@ void detectEvent(){
 		int keyIndex=keypress(devev->detail,mods,cookie->evtype==XI_KeyPress);
 		printf("setting index %d\n",workingIndex);
 		if (keyIndex>=0){
-
 			masters[workingIndex].timeLastRecorded=time(NULL) * 1000;
 			keys[keyIndex].timeLastRecorded[workingIndex]=time(NULL) * 1000;
 			printf("%ld\n",keys[keyIndex].timeLastRecorded[workingIndex]);
-
 		}
 
 
@@ -220,26 +176,6 @@ void detectEvent(){
 	XFreeEventData(dpy, cookie);
 	printf("done\n");
 }
-
-/*
-void detectEvent(){
-	XEvent event;
-	XKeyEvent ev;
-	XIDeviceEvent *devev;
-	XNextEvent(dpy,&event);
-	XGenericEventCookie *cookie = &event.xcookie;
-	if(XGetEventData(dpy, cookie)){
-		devev = cookie->data;
-
-
-	}
-	else{
-		ev = event.xkey;
-		keypress(ev.keycode,ev.state,event.type==KeyPress);
-	}
-
-}
-*/
 int keypress(int keyCode,int mods,Bool press){
 
 	for (size_t i = 0; i < LEN(keys); i++) {
@@ -268,7 +204,6 @@ int keypress(int keyCode,int mods,Bool press){
 
 }
 void forceRelease(int n){
-	computeKeymap();
 	time_t t;
     t = time(NULL) * 1000;
 	for (size_t i = 0; i < LEN(keys); i++) {
@@ -376,25 +311,27 @@ Bool calcuateDisplacement(int index, Bool scroll){
 
 
 void scrollWithMouse(int id){
-	int xbutton = (masters[workingIndex].scrollDir & LEFT) ? SCROLLLEFT : SCROLLRIGHT;
-	int ybutton = (masters[workingIndex].scrollDir & UP) ? SCROLLUP : SCROLLDOWN;
+    int scroll=masters[workingIndex].scrollDir;
+	int xButton = ( scroll & LEFT) ? SCROLLLEFT : scroll&RIGHT? SCROLLRIGHT:0;
+	int yButton = ( scroll & UP) ? SCROLLUP : scroll&DOWN? SCROLLDOWN:0;
 
-	printf("id: %d\n",masters[id].id);
-	if (!xbutton && !ybutton)
-		return;
-	pressButton(xbutton,True);
-	pressButton(xbutton,False);
-	pressButton(ybutton,True);
-	pressButton(ybutton,False);
+	printf("scroll %d id: %d %d %d\n",masters[workingIndex].scrollDir,masters[id].id,xButton,yButton);
+    if(xButton){
+        pressButton(xButton,True);
+        pressButton(xButton,False);
+    }
+    if(yButton){
+        pressButton(yButton,True);
+        pressButton(yButton,False);
+    }
 }
 
 void clickpress(const int btn){
 	Window w;
 	XIGetFocus(dpy,masters[workingIndex].id, &w);
-	pressButton(btn,True);
+        pressButton(btn,True);
 	printf("pressing\n");
 }
-
 void clickrelease(const int btn){
 	Window w;
 	XIGetFocus(dpy,masters[workingIndex].id, &w);
@@ -402,20 +339,18 @@ void clickrelease(const int btn){
 }
 
 void pressButton(const int btn,Bool press){
-	XDevice dev;
-	dev.device_id = masters[workingIndex].id; /* this is cheating */
-	//XTestFakeDeviceButtonEvent(display, &dev, button, True, NULL, 0, 0);
+	XDevice dev={.device_id = masters[workingIndex].id}; /* this is cheating */
 	XTestFakeDeviceButtonEvent(dpy,&dev,btn, press,NULL,0, CurrentTime);
 }
 
 void multiplyspeed(const int factor){
 	masters[workingIndex].coefficent *= factor;
-	if (masters[workingIndex].coefficent>MAX_THRESHOLD)
+	if (MAX_THRESHOLD && masters[workingIndex].coefficent>MAX_THRESHOLD)
 		masters[workingIndex].coefficent = MAX_THRESHOLD;
 }
 void dividespeed(const int factor){
 	masters[workingIndex].coefficent/= factor;
-	if (masters[workingIndex].coefficent<MIN_THRESHOLD)
+	if (MIN_THRESHOLD && masters[workingIndex].coefficent<MIN_THRESHOLD)
 		masters[workingIndex].coefficent = MIN_THRESHOLD;
 }
 void mouseAction(Bool scroll, int d, Bool start){
@@ -431,7 +366,7 @@ void mouseAction(Bool scroll, int d, Bool start){
 		break;
 	}
 	//printf("mouse action %d %d %d\n",scroll,masters[workingIndex].scrollDir,masters[workingIndex].mouseDir);
-	if (scroll)
+    if (scroll)
 		if(start)
 			masters[workingIndex].scrollDir|= d;
 		else
@@ -443,31 +378,3 @@ void mouseAction(Bool scroll, int d, Bool start){
 			masters[workingIndex].mouseDir&= ~ d;
 	//printf("mouse action %d %d %d\n",d,masters[workingIndex].scrollDir,masters[workingIndex].mouseDir);
 }
-/*
-void cycleDefaultMaster(int dir){
-	printf("cycling\n");
-	int id;
-	Window w;
-	XGetInputFocus(dpy, &w,&id);
-	XIGetClientPointer(dpy, w, &id);
-	printf("got current client\n");
-	int index=0;
-	int ndevices;
-	XIDeviceInfo *devices, *device;
-
-	devices = XIQueryDevice(dpy, XIMasterPointer, &ndevices);
-
-	for (int i = 0; i < ndevices; i++) {
-		device = &devices[i];
-		if (device->deviceid==id){
-			printf("Device %s (id: %d) at  %d\n", device->name, device->deviceid,i);
-			index=((i+dir*2)+ndevices)%ndevices;
-			break;
-		}
-	}
-	XIFreeDeviceInfo(devices);
-	printf("setting %d %d\n",index,devices[index].deviceid);
-	XISetClientPointer(dpy,w,devices[index].deviceid);
-}
-
-*/

@@ -1,3 +1,5 @@
+*This project is deprecated. The functionality has been absorbed into [MPXManager](https://github.com/TAAPArthur/MyPersonalXwindowManager)*
+
 #XMouseControl
 
 XMouseControl allows you to control your mouse from your keyboard. This differs from X's builtin [MouseKeys](https://www.x.org/releases/X11R7.7/doc/libX11/XKB/xkblib.html#Controls_for_Using_the_Mouse_from_the_Keyboard) in that is supports multiple directions at once. In addition, it does not grab your entire keyboard and supports multiple master keyboards (caveat see bugs)

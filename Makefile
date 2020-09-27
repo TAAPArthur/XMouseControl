@@ -1,20 +1,21 @@
-CC := gcc
+CC ?= tcc
 CPPFLAGS := -D_XOPEN_SOURCE=500
-CFLAGS := -std=c99 -pedantic -Wall -Wextra -Wno-deprecated-declarations -Wno-missing-field-initializers -Os -g
-LDFLAGS := -s -lX11 -lXtst -lXi -lxdo
+CFLAGS := -Wall -Wextra -Wno-missing-field-initializers -O3
+LDFLAGS := -s -lX11 -lXtst -lXi -lpthread
 
-HEADERS := config.h XMouseControl.h
+SRC := config.h xmousecontrol.o threads.o xutil.o
 
 all: xmouse-control
 
-xmouse-control: ${HEADERS} XMouseControl.c
-	${CC} -o $@ ${CPPFLAGS} ${CFLAGS} XMouseControl.c ${LDFLAGS}
+xmouse-control: $(SRC:.c=.o)
+	${CC} $^  -o $@ ${CPPFLAGS} ${CFLAGS} ${LDFLAGS}
 
 config.h:
 	cp config.def.h $@
-install:
 
-  mkdir -p "${DESTDIR}/usr/bin/"
-  mkdir -p "${DESTDIR}/usr/lib/xmouse-control/"
-  install -D -m 0755 "xmouse-control" "${DESTDIR}/usr/bin/"
+install:
+	install -D -m 0755 "xmouse-control" "${DESTDIR}/usr/bin/"
+
+clean:
+	rm -f *.o xmouse-control
 .PHONY: all clean check install

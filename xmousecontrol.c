@@ -8,7 +8,7 @@
 
 #include "config.h"
 #include "threads.h"
-#define LEN(X) (sizeof X / sizeof X[0])
+#define LEN(X) ((int)(sizeof X / sizeof X[0]))
 #define NUMBER_OF_MASTER_DEVICES  8
 #define MAX(A,B)(A>B?A:B)
 #define MIN(A,B)(A<B?A:B)
@@ -70,25 +70,10 @@ static int handleError(Display* dpy, XErrorEvent* event) {
     return 0;
 }
 
-void checkXServerVersion() {
-    int opcode, event, error;
-    if(!XQueryExtension(dpy, "XInputExtension", &opcode, &event, &error)) {
-        printf("X Input extension not available.\n");
-        exit(1);
-    }
-    /* Which version of XI2? We support 2.0 */
-    int major = 2, minor = 0;
-    if(XIQueryVersion(dpy, &major, &minor) == BadRequest) {
-        printf("XI2 not available. Server supports %d.%d\n", major, minor);
-        exit(1);
-    }
-}
-
 void init() {
     dpy = XOpenDisplay(NULL);
     if(!dpy)
         exit(2);
-    checkXServerVersion();
     root = DefaultRootWindow(dpy);
     XSetErrorHandler(handleError);
     for(unsigned int i = 0; i < LEN(bindings); i++) {
@@ -97,10 +82,10 @@ void init() {
             bindings[i].keyRelease ? XI_KeyReleaseMask : XI_KeyPressMask, IGNORE_MASK);
     }
 }
-MasterID active;
 void run() {
     XEvent event;
     XIDeviceEvent* devev;
+    MasterID active;
     while(1) {
         XNextEvent(dpy, &event);
         XGenericEventCookie* cookie = &event.xcookie;
@@ -113,7 +98,7 @@ void run() {
                     forceReset(deviceInfo[active].id);
                 }
                 int mods = devev->mods.effective & ~IGNORE_MASK;
-                for(size_t i = 0; i < LEN(bindings); i++) {
+                for(int i = 0; i < LEN(bindings); i++) {
                     if(bindings[i].keyCode == devev->detail && bindings[i].mod == mods &&
                         bindings[i].keyRelease == (cookie->evtype == XI_KeyRelease)) {
                         bindings[i].func(deviceInfo + active, bindings[i].arg);
@@ -198,9 +183,9 @@ void* runXMouseControl() {
 }
 
 int main() {
-    signal(SIGCHLD, SIG_IGN);
     if(!XInitThreads())
         exit(2);
+    signal(SIGCHLD, SIG_IGN);
     init();
     spawnThread(runXMouseControl);
     run();

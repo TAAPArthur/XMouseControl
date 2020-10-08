@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include <pthread.h>
 
-#define THREAD_SIGNALER_INITIALIZER (ThreadSignaler) {.mutex = PTHREAD_MUTEX_INITIALIZER, .condVar = PTHREAD_COND_INITIALIZER}
+#define THREAD_SIGNALER_INITIALIZER {.mutex = PTHREAD_MUTEX_INITIALIZER, .condVar = PTHREAD_COND_INITIALIZER, 0}
 /**
  * Abstracts the wait and notify thread semantics
  * This class is used to coordinate actions between to threads that have some shared state in an attempt to

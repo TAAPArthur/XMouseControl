@@ -1,6 +1,14 @@
 #include <X11/keysym.h>
 #include "xmousecontrol.h"
 #include "xutil.h"
+
+#define BASE_MOUSE_SPEED 10
+#define BASE_SCROLL_SPEED 1
+#define XMOUSE_CONTROL_UPDATER_INTERVAL 30
+#define NUMBER_OF_MASTER_DEVICES  255
+#define DEFAULT_MOD_MASK Mod3Mask
+#define IGNORE_MASK Mod2Mask
+
 #define PAIR(MASK,KEY,KP,A1,KR,A2)\
     {MASK, KEY, KP, A1,0 }, \
     {MASK, KEY, KR, A2, 1}
@@ -8,8 +16,6 @@
 #define BINDING(MASK, KEY, BUTTON_MASK)\
     PAIR(MASK, KEY, addXMouseControlMask, BUTTON_MASK, removeXMouseControlMask, BUTTON_MASK)
 
-#define DEFAULT_MOD_MASK Mod3Mask
-#define IGNORE_MASK Mod2Mask
 KeyBinding bindings[] = {
     // Directional control with WASD.
     BINDING(DEFAULT_MOD_MASK, XK_w, SCROLL_UP_MASK),

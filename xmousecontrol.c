@@ -10,16 +10,9 @@
 
 #include "config.h"
 #define LEN(X) ((int)(sizeof X / sizeof X[0]))
-#define NUMBER_OF_MASTER_DEVICES  8
-#define MAX(A,B)(A>B?A:B)
-#define MIN(A,B)(A<B?A:B)
+#define MIN_MAX(MIN, MAX, VALUE) (MIN>VALUE?MIN:VALUE>MAX?MAX:VALUE)
 
 static XMouseControlMasterState deviceInfo[NUMBER_OF_MASTER_DEVICES];
-
-unsigned int BASE_MOUSE_SPEED = 10;
-unsigned int BASE_SCROLL_SPEED = 1;
-unsigned int XMOUSE_CONTROL_UPDATER_INTERVAL = 30;
-
 
 Display* dpy = NULL;
 Window root;
@@ -168,13 +161,13 @@ void removeXMouseControlMask(XMouseControlMasterState* info, int mask) {
 
 void adjustScrollSpeed(XMouseControlMasterState* info, int diff) {
     info->scrollScale = diff == 0 ? 0 : info->scrollScale + diff;
-    info->scrollScale = MAX(1, MIN(info->scrollScale, 256));
+    info->scrollScale = MIN_MAX(1, 256, info->scrollScale);
     _notify(info, 1);
 }
 
 void adjustSpeed(XMouseControlMasterState* info, int diff) {
     info->vScale = diff == 0 ? 0 : info->vScale + diff;
-    info->vScale = MAX(1, MIN(info->vScale, 256));
+    info->vScale = MIN_MAX(1, 256, info->vScale);
     _notify(info, 0);
 }
 

@@ -2,24 +2,23 @@
 
 
 pkgname='xmouse-control'
-pkgver='1.2.1'
+pkgver='1.3.0'
 _language='en-US'
 pkgrel=1
 pkgdesc='Control mouse from keyboard'
 
 arch=('any')
 license=('MIT')
-depends=('xorg-server' 'libx11' )
+depends=(libx11 libxtst libxi)
 md5sums=('SKIP')
 
 source=("git://github.com/TAAPArthur/XMouseControl.git")
 _srcDir="XMouseControl"
 
 build(){
-	cd "$_srcDir"
-	make
+	make -C "$_srcDir"
 }
+
 package() {
-  cd "$_srcDir"
-  make DESTDIR="$pkgdir" install
+  make -C "$_srcDir" DESTDIR="$pkgdir" install
 }

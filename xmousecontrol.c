@@ -1,24 +1,29 @@
 #include <X11/Xlib.h>
 #include <X11/extensions/XInput2.h>
 #include <X11/keysym.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/poll.h>
+#include <time.h>
 #include <unistd.h>
-#include <signal.h>
 
 #include "config.h"
-#include "threads.h"
 #define LEN(X) ((int)(sizeof X / sizeof X[0]))
 #define NUMBER_OF_MASTER_DEVICES  8
 #define MAX(A,B)(A>B?A:B)
 #define MIN(A,B)(A<B?A:B)
 
 static XMouseControlMasterState deviceInfo[NUMBER_OF_MASTER_DEVICES];
-static ThreadSignaler signaler = THREAD_SIGNALER_INITIALIZER;
 
 unsigned int BASE_MOUSE_SPEED = 10;
 unsigned int BASE_SCROLL_SPEED = 1;
 unsigned int XMOUSE_CONTROL_UPDATER_INTERVAL = 30;
+
+
+Display* dpy = NULL;
+Window root;
+static struct pollfd xeventFD = {0};
 
 static void notify(char* summary, char* body) {
     if(!fork()) {
@@ -36,9 +41,6 @@ static inline void _notify(XMouseControlMasterState* info, int scroll) {
         sprintf(body, "Pointer Speed %d", info->vScale);
     notify(summary, body);
 }
-
-Display* dpy = NULL;
-Window root;
 
 static void forceReset(MasterID id) {
     int ndevices;
@@ -75,6 +77,7 @@ void init() {
     if(!dpy)
         exit(2);
     root = DefaultRootWindow(dpy);
+    xeventFD = (struct pollfd) { XConnectionNumber(dpy), POLLIN};
     XSetErrorHandler(handleError);
     for(unsigned int i = 0; i < LEN(bindings); i++) {
         bindings[i].keyCode = XKeysymToKeycode(dpy, bindings[i].keySym);
@@ -82,12 +85,53 @@ void init() {
             bindings[i].keyRelease ? XI_KeyReleaseMask : XI_KeyPressMask, IGNORE_MASK);
     }
 }
+
+long getTimeSince(struct timespec* start) {
+    struct timespec current;
+    clock_gettime(CLOCK_MONOTONIC, &current);
+    if(current.tv_sec  > start->tv_sec)
+        return 0;
+    long diff = (current.tv_nsec - start->tv_nsec) / 1e6;
+    if(diff > XMOUSE_CONTROL_UPDATER_INTERVAL)
+        return 0;
+    return XMOUSE_CONTROL_UPDATER_INTERVAL - diff;
+}
+
+void getEvent(XEvent* event) {
+    static struct timespec start;
+    int timeout = getTimeSince(&start);
+    if(!timeout) {
+        xmousecontrolUpdate();
+        clock_gettime(CLOCK_MONOTONIC, &start);
+        timeout = getTimeSince(&start);
+    }
+    while(1) {
+        if(XEventsQueued(dpy, QueuedAlready)) {
+            printf("Loading pending events\n");
+            XNextEvent(dpy, event);
+            return;
+        }
+        switch(poll(&xeventFD, 1, timeout)) {
+            case 0:
+                timeout = XMOUSE_CONTROL_UPDATER_INTERVAL;
+                clock_gettime(CLOCK_MONOTONIC, &start);
+                if(xmousecontrolUpdate())
+                    continue;
+            // fallthrough
+            case 1:
+                XNextEvent(dpy, event);
+                return;
+            case -1:
+                exit(1);
+        }
+    }
+}
 void run() {
     XEvent event;
     XIDeviceEvent* devev;
     MasterID active;
     while(1) {
-        XNextEvent(dpy, &event);
+        getEvent(&event);
         XGenericEventCookie* cookie = &event.xcookie;
         if(XGetEventData(dpy, cookie)) {
             devev = cookie->data;
@@ -117,7 +161,6 @@ void resetXMouseControl(XMouseControlMasterState* info) {
 }
 void addXMouseControlMask(XMouseControlMasterState* info, int mask) {
     info->mask |= mask;
-    signalThread(&signaler);
 }
 void removeXMouseControlMask(XMouseControlMasterState* info, int mask) {
     info->mask &= ~mask;
@@ -153,7 +196,7 @@ int xmousecontrolUpdate(void) {
     for(int i = 0; i < NUMBER_OF_MASTER_DEVICES; i++) {
         XMouseControlMasterState* info = deviceInfo + i;
         if(info->id && info->mask) {
-            update++  ;
+            update++;
             if(_IS_SET(info, SCROLL_RIGHT_MASK, SCROLL_LEFT_MASK))
                 for(int i = 0; i < info->scrollScale; i++)
                     clickButton(info, info->mask & SCROLL_RIGHT_MASK ? SCROLL_RIGHT : SCROLL_LEFT);
@@ -170,24 +213,13 @@ int xmousecontrolUpdate(void) {
                 movePointerRelative(deltaX, deltaY, info->id);
         }
     }
+    XFlush(dpy);
     return update;
 }
 
-void* runXMouseControl() {
-    while(1) {
-        int update = xmousecontrolUpdate();
-        XFlush(dpy);
-        sleepOrWait(&signaler, update, XMOUSE_CONTROL_UPDATER_INTERVAL);
-    }
-    return NULL;
-}
-
 int main() {
-    if(!XInitThreads())
-        exit(2);
     signal(SIGCHLD, SIG_IGN);
     init();
-    spawnThread(runXMouseControl);
     run();
     return 0;
 }

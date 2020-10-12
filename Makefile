@@ -1,8 +1,8 @@
 CC ?= tcc
 CFLAGS := -pedantic -Wall -Wextra -Wno-missing-field-initializers -O2
-LDFLAGS := -lX11 -lXtst -lXi -lpthread
+LDFLAGS := -lX11 -lXtst -lXi
 
-SRC := xmousecontrol.o threads.o xutil.o
+SRC := xmousecontrol.o xutil.o
 
 all: config.h xmouse-control
 

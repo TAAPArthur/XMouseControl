@@ -1,5 +1,3 @@
-*This project is deprecated. The functionality has been absorbed into [MPXManager](https://github.com/TAAPArthur/MyPersonalXwindowManager)*
-
 #XMouseControl
 
 XMouseControl allows you to control your mouse from your keyboard. This differs from X's builtin [MouseKeys](https://www.x.org/releases/X11R7.7/doc/libX11/XKB/xkblib.html#Controls_for_Using_the_Mouse_from_the_Keyboard) in that is supports multiple directions at once. In addition, it does not grab your entire keyboard and supports multiple master keyboards (caveat see bugs)
@@ -10,26 +8,16 @@ Building XMouseControl requires:
 
 * Xlib header files (Debian: libx11-dev, Arch: libx11)
 * XTEST header files (Debian: libxtst-dev, Arch: libx11)
-* GNU make
+* make
 * a C99 compiler
-
 
 
 ## Configuration
 
-Set keybindings in  `config.h` 
+Set keybindings in  `config.h`
 
 ## Bugs
-Due to difficulty get the KeyMap for secondary keyboards, non default master keyboards with auto repeat enabled may miss a keyrelease when rapidly pressing keys. Simply repressing the key will fix the issue. 
-
-### Reference
-
-For more details see:
-
-* [Xlib - C Language X Interface](https://www.x.org/docs/X11/xlib.pdf), especially Chapter 12
-* [Xlib Programming Manual](https://archive.org/details/xlibretmanver1102nyemiss)
-
-
+Due to difficulty get the KeyMap for secondary keyboards, non default master keyboards with auto repeat enabled may miss a keyrelease when rapidly pressing keys. Simply repressing the key will fix the issue.
 
 ## Acknowledgements
 

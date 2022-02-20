@@ -1,21 +1,17 @@
-#include <X11/Xlib.h>
-#include <X11/extensions/XInput2.h>
-#include <X11/keysym.h>
+#include <poll.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/poll.h>
 #include <time.h>
 #include <unistd.h>
 
 #include "config.h"
+#include "xutil.h"
 #define LEN(X) ((int)(sizeof X / sizeof X[0]))
 #define MIN_MAX(MIN, MAX, VALUE) (MIN>VALUE?MIN:VALUE>MAX?MAX:VALUE)
 
 static XMouseControlMasterState deviceInfo[NUMBER_OF_MASTER_DEVICES];
 
-Display* dpy = NULL;
-Window root;
 static struct pollfd xeventFD = {0};
 
 static void notify(char* summary, char* body) {
@@ -35,51 +31,7 @@ static inline void _notify(XMouseControlMasterState* info, int scroll) {
     notify(summary, body);
 }
 
-static void forceReset(MasterID id) {
-    int ndevices;
-    XIDeviceInfo* devices, device;
-    devices = XIQueryDevice(dpy, id, &ndevices);
-    for(int i = 0; i < ndevices; i++) {
-        device = devices[i];
-        switch(device.use) {
-            case XIMasterPointer:
-                deviceInfo[device.deviceid].id = device.deviceid;
-                deviceInfo[device.attachment].id = device.deviceid;
-                break;
-            case XIMasterKeyboard:
-                deviceInfo[device.attachment].id = device.attachment;
-                deviceInfo[device.deviceid].id = device.attachment;
-                break;
-        }
-    }
-    XIFreeDeviceInfo(devices);
-}
-
-static int handleError(Display* dpy, XErrorEvent* event) {
-    char buff[100];
-    XGetErrorText(dpy, event->error_code, buff, 40);
-    printf("Ignoring Xlib error: error code %d request code %d %s\n",
-        event->error_code,
-        event->request_code, buff) ;
-    forceReset(XIAllMasterDevices);
-    return 0;
-}
-
-void init() {
-    dpy = XOpenDisplay(NULL);
-    if(!dpy)
-        exit(2);
-    root = DefaultRootWindow(dpy);
-    xeventFD = (struct pollfd) { XConnectionNumber(dpy), POLLIN};
-    XSetErrorHandler(handleError);
-    for(unsigned int i = 0; i < LEN(bindings); i++) {
-        bindings[i].keyCode = XKeysymToKeycode(dpy, bindings[i].keySym);
-        grabKey(XIAllMasterDevices, bindings[i].mod, bindings[i].keyCode,
-            bindings[i].keyRelease ? XI_KeyReleaseMask : XI_KeyPressMask, IGNORE_MASK);
-    }
-}
-
-long getTimeSince(struct timespec* start) {
+static long getTimeSince(struct timespec* start) {
     struct timespec current;
     clock_gettime(CLOCK_MONOTONIC, &current);
     if(current.tv_sec  > start->tv_sec)
@@ -90,60 +42,46 @@ long getTimeSince(struct timespec* start) {
     return XMOUSE_CONTROL_UPDATER_INTERVAL - diff;
 }
 
-void getEvent(XEvent* event) {
-    static struct timespec start;
-    int timeout = getTimeSince(&start);
-    if(!timeout) {
-        xmousecontrolUpdate();
-        clock_gettime(CLOCK_MONOTONIC, &start);
-        timeout = getTimeSince(&start);
-    }
-    while(1) {
-        if(XEventsQueued(dpy, QueuedAlready)) {
-            printf("Loading pending events\n");
-            XNextEvent(dpy, event);
-            return;
-        }
-        switch(poll(&xeventFD, 1, timeout)) {
-            case 0:
-                timeout = XMOUSE_CONTROL_UPDATER_INTERVAL;
-                clock_gettime(CLOCK_MONOTONIC, &start);
-                if(xmousecontrolUpdate())
-                    continue;
-            // fallthrough
-            case 1:
-                XNextEvent(dpy, event);
-                return;
-            case -1:
-                exit(1);
+static int processEvents(int timeout) {
+    int numEvents;
+    if((numEvents = poll(&xeventFD, 1, timeout))) {
+        if(xeventFD.revents & (POLLERR | POLLNVAL | POLLHUP)) {
+            exit(3);
         }
     }
+    return numEvents;
 }
-void run() {
-    XEvent event;
-    XIDeviceEvent* devev;
-    MasterID active;
+static void run() {
+    static struct timespec start;
+    KeyEvent keyEvent;
     while(1) {
-        getEvent(&event);
-        XGenericEventCookie* cookie = &event.xcookie;
-        if(XGetEventData(dpy, cookie)) {
-            devev = cookie->data;
-            if(devev->deviceid != 0) {
-                active = devev->deviceid;
-                if(!deviceInfo[active].id) {
-                    resetXMouseControl(&deviceInfo[active]);
-                    forceReset(deviceInfo[active].id);
-                }
-                int mods = devev->mods.effective & ~IGNORE_MASK;
-                for(int i = 0; i < LEN(bindings); i++) {
-                    if(bindings[i].keyCode == devev->detail && bindings[i].mod == mods &&
-                        bindings[i].keyRelease == (cookie->evtype == XI_KeyRelease)) {
-                        bindings[i].func(deviceInfo + active, bindings[i].arg);
-                    }
+        int timeout = getTimeSince(&start);
+        if(!timeout) {
+            xmousecontrolUpdate();
+            clock_gettime(CLOCK_MONOTONIC, &start);
+            timeout = getTimeSince(&start);
+        }
+        if(!processEvents(timeout)) {
+            timeout = XMOUSE_CONTROL_UPDATER_INTERVAL;
+            clock_gettime(CLOCK_MONOTONIC, &start);
+            if(xmousecontrolUpdate())
+                continue;
+        }
+        unsigned char deviceId= process_event(&keyEvent);
+        MasterID masterID = getDeviceMapping(deviceId);
+        if(masterID) {
+            if(!deviceInfo[masterID].id) {
+                resetXMouseControl(&deviceInfo[masterID]);
+                deviceInfo[masterID].id = getDeviceMapping(masterID);
+            }
+            int mod = keyEvent.mod & ~IGNORE_MASK;
+            for(int i = 0; i < LEN(bindings); i++) {
+                if(bindings[i].keyCode == keyEvent.detail && bindings[i].mod == mod &&
+                    bindings[i].keyRelease == keyEvent.keyRelease) {
+                    bindings[i].func(deviceInfo + deviceInfo[masterID].id, bindings[i].arg);
                 }
             }
         }
-        XFreeEventData(dpy, cookie);
     }
 }
 
@@ -177,7 +115,7 @@ void clickButton(XMouseControlMasterState* info, int button) {
 }
 
 void grabKeyboard(XMouseControlMasterState* info) {
-    grabDevice(info->id, XI_KeyReleaseMask | XI_KeyPressMask);
+    grabKeyboardDevice(info->id);
 }
 void ungrabKeyboard(XMouseControlMasterState* info) {
     ungrabDevice(info->id);
@@ -206,13 +144,15 @@ int xmousecontrolUpdate(void) {
                 movePointerRelative(deltaX, deltaY, info->id);
         }
     }
-    XFlush(dpy);
+    flush();
     return update;
 }
 
 int main() {
     signal(SIGCHLD, SIG_IGN);
-    init();
+    int fd = open_connection();
+    xeventFD = (struct pollfd) { fd, POLLIN};
+    init_bindings(bindings, LEN(bindings), IGNORE_MASK);
     run();
     return 0;
 }

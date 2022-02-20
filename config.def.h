@@ -1,6 +1,7 @@
-#include <X11/keysym.h>
 #include "xmousecontrol.h"
 #include "xutil.h"
+#include <X11/X.h>
+#include <X11/keysym.h>
 
 #define BASE_MOUSE_SPEED 10
 #define BASE_SCROLL_SPEED 1

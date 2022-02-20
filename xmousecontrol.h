@@ -6,7 +6,6 @@
 #ifndef XMOUSE_CONTROL_H
 #define XMOUSE_CONTROL_H
 
-#include <X11/X.h>
 
 
 /// @{ Extra mouse button macros
@@ -27,16 +26,22 @@
 /// @}
 
 
-typedef struct {
+typedef struct KeyBinding {
     int mod;
-    KeySym keySym;
+    int keySym;
     void (*func)();
     const int arg;
     char keyRelease;
 
 
-    KeyCode keyCode;
+    int keyCode;
 } KeyBinding;
+
+typedef struct KeyEvent {
+    int mod;
+    char detail;
+    char keyRelease;
+}KeyEvent;
 
 typedef struct XMouseControlMasterState {
     /// ID of the backing master device

@@ -1,4 +1,4 @@
-#XMouseControl
+# XMouseControl
 
 XMouseControl allows you to control your mouse from your keyboard. This differs from X's builtin [MouseKeys](https://www.x.org/releases/X11R7.7/doc/libX11/XKB/xkblib.html#Controls_for_Using_the_Mouse_from_the_Keyboard) in that is supports multiple directions at once. In addition, it does not grab your entire keyboard and supports multiple master keyboards (caveat see bugs)
 
@@ -6,8 +6,7 @@ XMouseControl allows you to control your mouse from your keyboard. This differs 
 
 Building XMouseControl requires:
 
-* Xlib header files (Debian: libx11-dev, Arch: libx11)
-* XTEST header files (Debian: libxtst-dev, Arch: libx11)
+* the following libraries are needed: -lxcb -lxcb-keysyms -lxcb-xinput -lxcb-xtest
 * make
 * a C99 compiler
 
